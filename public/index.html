@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Presentation Rating</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#1b1f2a;--mu:#6b7280;--ac:#4f46e5;--bd:#e5e7eb}
+@media (prefers-color-scheme:dark){:root{--bg:#12141c;--card:#1c1f2b;--tx:#eef0f6;--mu:#9aa1b2;--ac:#818cf8;--bd:#2c3040}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.w{max-width:640px;margin:0 auto;padding:16px}h1{font-size:21px;margin:8px 0 14px}h2{font-size:17px;margin:0 0 8px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+button{background:var(--card);color:var(--tx);border:1px solid var(--bd);padding:10px 14px;border-radius:10px;font-size:15px;cursor:pointer}
+button.p,button.on{background:var(--ac);color:#fff;border-color:var(--ac)}button:disabled{opacity:.5}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font-size:15px}
+textarea{min-height:120px}label{font-size:13px;color:var(--mu);display:block;margin:8px 0 4px}
+.g{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0}.g button{padding:14px 0;font-size:18px}
+.mu{color:var(--mu);font-size:13px}.ok{color:#16a34a;font-size:14px}.big{font-size:20px;font-weight:600}
+.sc{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{padding:9px 6px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}
+.hide{display:none}.row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+</style></head><body><div class="w">
+<h1>🎤 Presentation Rating</h1>
+
+<div class="c"><label>Who am I? (choose my name)</label><select id="me"></select></div>
+
+<div class="c"><a href="#" id="tl" class="mu">👩‍🏫 Teacher login</a>
+<div id="lg" class="hide"><label>Admin PIN</label><input id="pin" type="password" inputmode="numeric"><div class="row"><button class="p" id="go">Login</button></div><div id="lm" class="mu"></div></div></div>
+
+<div id="adm" class="c hide"><h2>👩‍🏫 Teacher controls</h2>
+<label>Student names (one name per line). Saving will delete previous ratings.</label><textarea id="names"></textarea>
+<div class="row"><button class="p" id="sn">Save names</button></div>
+<label>Who is presenting now?</label><select id="cur"></select>
+<div class="row"><button class="p" id="st">Start</button><button id="en">End presentation</button><button id="rs">Reset all ratings</button></div></div>
+
+<div class="c" id="rate"></div>
+<div class="c sc"><h2>🏆 Ranking (live)</h2><div id="rk"></div></div>
+</div>
+<script>
+var S={names:[],current:-1,votes:[]},pick=null,lastCur=-2,namesKey="",PIN=null;
+function $(i){return document.getElementById(i)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function me(){var v=parseInt($("me").value);return isNaN(v)?-1:v}
+function opts(blank){var h=blank?"<option value=''>-- choose --</option>":"";S.names.forEach(function(n,i){h+="<option value='"+i+"'>"+esc(n)+"</option>"});return h}
+
+async function api(url,body){
+  var r=await fetch(url,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:undefined);
+  if(!r.ok)throw new Error(r.status);return r.json()}
+
+async function poll(){
+  try{S=await api("/api/state")}catch(e){return}
+  var key=S.names.join("|");
+  if(key!==namesKey){
+    var m=$("me").value,c=$("cur").value;
+    $("me").innerHTML=opts(true);$("cur").innerHTML=opts(false);
+    var saved=null;try{saved=localStorage.getItem("me")}catch(e){}
+    $("me").value=m!==""?m:(saved!==null?saved:"");
+    if(c!=="")$("cur").value=c;
+    namesKey=key}
+  draw()}
+
+$("me").onchange=function(){try{localStorage.setItem("me",$("me").value)}catch(e){}pick=null;draw()};
+
+function draw(){
+  var cur=S.current,m=me(),n=S.names.length,h="";
+  if(cur!==lastCur){pick=null;lastCur=cur}
+  if(!n)h="<div class='mu'>The teacher has not set student names yet.</div>";
+  else if(cur<0||cur>=n)h="<div class='mu'>No presentation is running right now. Please wait for the teacher to start one.</div>";
+  else{
+    var cnt=S.votes.filter(function(v){return v.p==cur}).length;
+    h="<div class='mu'>Currently presenting</div><div class='big'>"+esc(S.names[cur])+"</div><div class='mu'>"+cnt+" / "+(n-1)+" ratings received</div>";
+    if(m<0)h+="<p>Please choose your name above first.</p>";
+    else if(m==cur)h+="<p>You are the presenter, so you cannot rate yourself. 😊</p>";
+    else{
+      var mine=S.votes.filter(function(v){return v.p==cur&&v.v==m})[0];
+      if(mine&&pick==null)pick=mine.s;
+      h+="<p>Give a rating (out of 10):</p><div class='g'>";
+      for(var i=1;i<=10;i++)h+="<button data-s='"+i+"' class='"+(pick==i?"on":"")+"'>"+i+"</button>";
+      h+="</div><button class='p' id='sub' style='width:100%'"+(pick==null?" disabled":"")+">"+(mine?"Update rating":"Submit")+"</button>";
+      if(mine)h+="<p class='ok'>Your rating: "+mine.s+" ✓</p>"} }
+  $("rate").innerHTML=h;
+  document.querySelectorAll("#rate .g button").forEach(function(b){b.onclick=function(){pick=+b.getAttribute("data-s");draw()}});
+  var sb=$("sub");if(sb)sb.onclick=submit;
+  rank()}
+
+async function submit(){
+  var cur=S.current,m=me();if(pick==null||m<0||cur<0)return;$("sub").disabled=true;
+  try{await api("/api/vote",{p:cur,v:m,s:pick});poll()}catch(e){alert("Save failed, please try again")}}
+
+function rank(){
+  var rows=S.names.map(function(nm,i){var vs=S.votes.filter(function(v){return v.p==i}),sum=0;vs.forEach(function(v){sum+=v.s});return{name:nm,n:vs.length,avg:vs.length?sum/vs.length:null}});
+  rows.sort(function(a,b){if(a.avg==null&&b.avg==null)return 0;if(a.avg==null)return 1;if(b.avg==null)return -1;return b.avg-a.avg});
+  if(!rows.length){$("rk").innerHTML="<span class='mu'>No data yet.</span>";return}
+  var h="<table><tr><th>Rank</th><th>Name</th><th>Avg /10</th><th>Votes</th></tr>",rk=0,prev=null,i=0,md=["🥇","🥈","🥉"];
+  rows.forEach(function(r){i++;var a=r.avg==null?null:Math.round(r.avg*100)/100;if(a!==prev)rk=i;prev=a;
+    h+="<tr><td>"+(a==null?"-":(rk<=3?md[rk-1]:rk))+"</td><td>"+esc(r.name)+"</td><td><b>"+(a==null?"—":a.toFixed(2))+"</b></td><td>"+r.n+"</td></tr>"});
+  $("rk").innerHTML=h+"</table>"}
+
+// ---- Teacher ----
+$("tl").onclick=function(e){e.preventDefault();$("lg").className=$("lg").className=="hide"?"":"hide"};
+$("go").onclick=async function(){
+  var p=$("pin").value;
+  try{await api("/api/admin",{pin:p,action:"check"});PIN=p;$("lg").className="hide";$("tl").className="hide";$("adm").className="c";$("names").value=S.names.join("\n")}
+  catch(e){$("lm").textContent="Invalid PIN"}};
+async function adm(body){body.pin=PIN;try{await api("/api/admin",body);poll()}catch(e){alert("Failed (wrong PIN or server unavailable)")}}
+$("sn").onclick=function(){var seen={},ns=$("names").value.split("\n").map(function(s){return s.trim()}).filter(function(s){if(!s||seen[s])return false;seen[s]=1;return true});adm({action:"names",names:ns})};
+$("st").onclick=function(){var c=parseInt($("cur").value);if(!isNaN(c))adm({action:"start",index:c})};
+$("en").onclick=function(){adm({action:"end"})};
+$("rs").onclick=function(){if(confirm("All ratings will be deleted. Are you sure?"))adm({action:"reset"})};
+
+poll();setInterval(poll,2000);
+</script></body></html>
