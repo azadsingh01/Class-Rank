@@ -31,7 +31,7 @@ textarea{min-height:120px}label{font-size:13px;color:var(--mu);display:block;mar
 <div class="c sc hide" id="rankWrap"><h2>🏆 Ranking (live)</h2><div id="rk"></div></div>
 </div>
 <script>
-var S={names:[],current:-1,votes:[]},pick=null,lastCur=-2,namesKey="",PIN=null;
+var S={names:[],current:-1,votes:[]},pick=null,submitted=false,lastCur=-2,namesKey="",PIN=null;
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function opts(){var h="";S.names.forEach(function(n,i){h+="<option value='"+i+"'>"+esc(n)+"</option>"});return h}
@@ -53,7 +53,7 @@ async function poll(){
 
 function draw(){
   var cur=S.current,n=S.names.length,h="";
-  if(cur!==lastCur){pick=null;lastCur=cur}
+  if(cur!==lastCur){pick=null;submitted=false;lastCur=cur}
   if(!n)h="<div class='mu'>The teacher has not set student names yet.</div>";
   else if(cur<0||cur>=n)h="<div class='mu'>No presentation is running right now. Please wait for the teacher to start one.</div>";
   else{
@@ -61,15 +61,16 @@ function draw(){
     h="<div class='mu'>Currently presenting</div><div class='big'>"+esc(S.names[cur])+"</div><div class='mu'>"+cnt+" ratings received</div>";
     h+="<p>Give a rating (out of 10):</p><div class='g'>";
     for(var i=1;i<=10;i++)h+="<button data-s='"+i+"' class='"+(pick==i?"on":"")+"'>"+i+"</button>";
-    h+="</div><button class='p' id='sub' style='width:100%'"+(pick==null?" disabled":"")+">Submit rating</button>"}
+    h+="</div><button class='p' id='sub' style='width:100%'"+(pick==null?" disabled":"")+">Submit rating</button>";
+    if(submitted)h+="<div class='ok' role='status' aria-live='polite'>Nice! Your rating has been submitted.</div>"}
   $("rate").innerHTML=h;
-  document.querySelectorAll("#rate .g button").forEach(function(b){b.onclick=function(){pick=+b.getAttribute("data-s");draw()}});
+  document.querySelectorAll("#rate .g button").forEach(function(b){b.onclick=function(){pick=+b.getAttribute("data-s");submitted=false;draw()}});
   var sb=$("sub");if(sb)sb.onclick=submit;
   rank()}
 
 async function submit(){
   var cur=S.current;if(pick==null||cur<0)return;$("sub").disabled=true;
-  try{await api("/api/vote",{p:cur,s:pick});pick=null;poll()}catch(e){$("sub").disabled=false;alert("Save failed, please try again")}}
+  try{await api("/api/vote",{p:cur,s:pick});pick=null;submitted=true;draw();poll()}catch(e){$("sub").disabled=false;alert("Save failed, please try again")}}
 
 function rank(){
   var rows=S.names.map(function(nm,i){var vs=S.votes.filter(function(v){return v.p==i}),sum=0;vs.forEach(function(v){sum+=v.s});return{name:nm,n:vs.length,avg:vs.length?sum/vs.length:null}});
