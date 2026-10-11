@@ -68,7 +68,7 @@ function draw(){
   else if(cur<0||cur>=n)h="<div class='mu'>No presentation is running right now. Please wait for the teacher to start one.</div>";
   else{
     var cnt=S.votes.filter(function(v){return v.p==cur}).length;
-    h="<div class='mu'>Currently presenting</div><div class='big'>"+esc(S.names[cur])+"</div><div class='mu'>"+cnt+" / "+n+" ratings received</div>";
+    h="<div class='mu'>Currently presenting</div><div class='big'>"+esc(S.names[cur])+"</div><div class='mu'>"+cnt+" / "+(n-1)+" ratings received</div>";
     if(m<0)h+="<p>Please choose your name above first.</p>";
     else if(m==cur)h+="<p>You are the presenter, so you cannot rate yourself. 😊</p>";
     else{
