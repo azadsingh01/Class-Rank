@@ -8,6 +8,9 @@ How to run it (in VS Code):
 4. Open in the browser: http://localhost:3000
 5. Teacher login: PIN 1234 (to change it: ADMIN_PIN=5555 node server.js)
 
+During a presentation, anyone can submit an anonymous rating from 1 to 10.
+There is no limit on ratings per attendee; each submission is counted separately.
+
 To run it on everyone's phone (same WiFi):
 - Find the laptop IP (Windows: ipconfig, Mac/Linux: ifconfig).
 - Open on students' phones: http://<laptop-ip>:3000

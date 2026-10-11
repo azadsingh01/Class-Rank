@@ -1,6 +1,6 @@
 // Presentation Rating System - server (no package installation required)
 // Run: node server.js   |   To change the admin PIN: ADMIN_PIN=5555 node server.js
-const http = require('http'), fs = require('fs'), path = require('path');
+const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const PORT = process.env.PORT || 3000;
 const PIN = String(process.env.ADMIN_PIN || '1234');
 const FILE = path.join(__dirname, 'data.json');
@@ -30,12 +30,13 @@ http.createServer(async (req, res) => {
 
   if (url === '/api/vote' && req.method === 'POST') {
     const b = await readBody(req);
-    const n = D.names.length, p = +b.p, v = +b.v, s = +b.s;
-    // Only current presenter can vote, not themselves, from 1 to 10
-    if (!(p >= 0 && p < n && v >= 0 && v < n && p !== v && p === D.current && s >= 1 && s <= 10)) {
+    const n = D.names.length, p = Number(b.p), s = Number(b.s);
+    // Accept anonymous ratings from any attendee for the current presenter.
+    if (!(Number.isInteger(p) && p >= 0 && p < n && p === D.current &&
+          Number.isInteger(s) && s >= 1 && s <= 10)) {
       return send(res, 400, { error: 'invalid' });
     }
-    D.votes[p + '_' + v] = { p, v, s };
+    D.votes[crypto.randomUUID()] = { p, s };
     save();
     return send(res, 200, { ok: 1 });
   }

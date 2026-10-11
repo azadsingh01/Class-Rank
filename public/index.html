@@ -18,8 +18,6 @@ textarea{min-height:120px}label{font-size:13px;color:var(--mu);display:block;mar
 </style></head><body><div class="w">
 <h1>🎤 Presentation Rating</h1>
 
-<select id="me" class="hide"></select>
-
 <div class="c"><a href="#" id="tl" class="mu">👩‍🏫 Teacher login</a>
 <div id="lg" class="hide"><label>Admin PIN</label><input id="pin" type="password" inputmode="numeric"><div class="row"><button class="p" id="go">Login</button></div><div id="lm" class="mu"></div></div></div>
 
@@ -36,8 +34,7 @@ textarea{min-height:120px}label{font-size:13px;color:var(--mu);display:block;mar
 var S={names:[],current:-1,votes:[]},pick=null,lastCur=-2,namesKey="",PIN=null;
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function me(){var el=$("me");if(!el)return 0;var v=parseInt(el.value);return isNaN(v)?0:v}
-function opts(blank){var h=blank?"<option value=''>-- choose --</option>":"";S.names.forEach(function(n,i){h+="<option value='"+i+"'>"+esc(n)+"</option>"});return h}
+function opts(){var h="";S.names.forEach(function(n,i){h+="<option value='"+i+"'>"+esc(n)+"</option>"});return h}
 
 async function api(url,body){
   var r=await fetch(url,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:undefined);
@@ -47,45 +44,32 @@ async function poll(){
   try{S=await api("/api/state")}catch(e){return}
   var key=S.names.join("|");
   if(key!==namesKey){
-    var meEl=$("me");
-    if(meEl){
-      var m=meEl.value,c=$("cur").value;
-      meEl.innerHTML=opts(true);$("cur").innerHTML=opts(false);
-      var saved=null;try{saved=localStorage.getItem("me")}catch(e){}
-      meEl.value=m!==""?m:(saved!==null?saved:(S.names.length?"0":""));
-      if(c!=="")$("cur").value=c;
-    }
+    var c=$("cur").value;
+    $("cur").innerHTML=opts();
+    if(c!=="")$("cur").value=c;
     namesKey=key}
   $("rankWrap").className=PIN?"c sc":"c sc hide";
   draw()}
 
-if($("me")){$("me").onchange=function(){try{localStorage.setItem("me",$("me").value)}catch(e){}pick=null;draw()};}
-
 function draw(){
-  var cur=S.current,m=me(),n=S.names.length,h="";
+  var cur=S.current,n=S.names.length,h="";
   if(cur!==lastCur){pick=null;lastCur=cur}
   if(!n)h="<div class='mu'>The teacher has not set student names yet.</div>";
   else if(cur<0||cur>=n)h="<div class='mu'>No presentation is running right now. Please wait for the teacher to start one.</div>";
   else{
     var cnt=S.votes.filter(function(v){return v.p==cur}).length;
-    h="<div class='mu'>Currently presenting</div><div class='big'>"+esc(S.names[cur])+"</div><div class='mu'>"+cnt+" / "+(n-1)+" ratings received</div>";
-    if(m<0)h+="<p>Please choose your name above first.</p>";
-    else if(m==cur)h+="<p>You are the presenter, so you cannot rate yourself. 😊</p>";
-    else{
-      var mine=S.votes.filter(function(v){return v.p==cur&&v.v==m})[0];
-      if(mine&&pick==null)pick=mine.s;
-      h+="<p>Give a rating (out of 10):</p><div class='g'>";
-      for(var i=1;i<=10;i++)h+="<button data-s='"+i+"' class='"+(pick==i?"on":"")+"'>"+i+"</button>";
-      h+="</div><button class='p' id='sub' style='width:100%'"+(pick==null?" disabled":"")+">"+(mine?"Update rating":"Submit")+"</button>";
-      if(mine)h+="<p class='ok'>Your rating: "+mine.s+" ✓</p>"} }
+    h="<div class='mu'>Currently presenting</div><div class='big'>"+esc(S.names[cur])+"</div><div class='mu'>"+cnt+" ratings received</div>";
+    h+="<p>Give a rating (out of 10):</p><div class='g'>";
+    for(var i=1;i<=10;i++)h+="<button data-s='"+i+"' class='"+(pick==i?"on":"")+"'>"+i+"</button>";
+    h+="</div><button class='p' id='sub' style='width:100%'"+(pick==null?" disabled":"")+">Submit rating</button>"}
   $("rate").innerHTML=h;
   document.querySelectorAll("#rate .g button").forEach(function(b){b.onclick=function(){pick=+b.getAttribute("data-s");draw()}});
   var sb=$("sub");if(sb)sb.onclick=submit;
   rank()}
 
 async function submit(){
-  var cur=S.current,m=me();if(pick==null||m<0||cur<0)return;$("sub").disabled=true;
-  try{await api("/api/vote",{p:cur,v:m,s:pick});poll()}catch(e){alert("Save failed, please try again")}}
+  var cur=S.current;if(pick==null||cur<0)return;$("sub").disabled=true;
+  try{await api("/api/vote",{p:cur,s:pick});pick=null;poll()}catch(e){$("sub").disabled=false;alert("Save failed, please try again")}}
 
 function rank(){
   var rows=S.names.map(function(nm,i){var vs=S.votes.filter(function(v){return v.p==i}),sum=0;vs.forEach(function(v){sum+=v.s});return{name:nm,n:vs.length,avg:vs.length?sum/vs.length:null}});
