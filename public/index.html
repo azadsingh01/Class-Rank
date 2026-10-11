@@ -30,7 +30,7 @@ textarea{min-height:120px}label{font-size:13px;color:var(--mu);display:block;mar
 <div class="row"><button class="p" id="st">Start</button><button id="en">End presentation</button><button id="rs">Reset all ratings</button></div></div>
 
 <div class="c" id="rate"></div>
-<div class="c sc"><h2>🏆 Ranking (live)</h2><div id="rk"></div></div>
+<div class="c sc hide" id="rankWrap"><h2>🏆 Ranking (live)</h2><div id="rk"></div></div>
 </div>
 <script>
 var S={names:[],current:-1,votes:[]},pick=null,lastCur=-2,namesKey="",PIN=null;
@@ -53,6 +53,7 @@ async function poll(){
     $("me").value=m!==""?m:(saved!==null?saved:"");
     if(c!=="")$("cur").value=c;
     namesKey=key}
+  $("rankWrap").className=PIN?"c sc":"c sc hide";
   draw()}
 
 $("me").onchange=function(){try{localStorage.setItem("me",$("me").value)}catch(e){}pick=null;draw()};
@@ -96,7 +97,7 @@ function rank(){
 $("tl").onclick=function(e){e.preventDefault();$("lg").className=$("lg").className=="hide"?"":"hide"};
 $("go").onclick=async function(){
   var p=$("pin").value;
-  try{await api("/api/admin",{pin:p,action:"check"});PIN=p;$("lg").className="hide";$("tl").className="hide";$("adm").className="c";$("names").value=S.names.join("\n")}
+  try{await api("/api/admin",{pin:p,action:"check"});PIN=p;$("lg").className="hide";$("tl").className="hide";$("adm").className="c";$("rankWrap").className="c sc";$("names").value=S.names.join("\n")}
   catch(e){$("lm").textContent="Invalid PIN"}};
 async function adm(body){body.pin=PIN;try{await api("/api/admin",body);poll()}catch(e){alert("Failed (wrong PIN or server unavailable)")}}
 $("sn").onclick=function(){var seen={},ns=$("names").value.split("\n").map(function(s){return s.trim()}).filter(function(s){if(!s||seen[s])return false;seen[s]=1;return true});adm({action:"names",names:ns})};
